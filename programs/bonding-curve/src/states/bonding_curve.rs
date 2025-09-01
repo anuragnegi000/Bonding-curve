@@ -11,4 +11,5 @@ pub struct BondingCurve {
     pub fee_percentage: u64,
     pub total_supply: u64,  
     pub migrated: bool,
+    pub bump: u8,
 }

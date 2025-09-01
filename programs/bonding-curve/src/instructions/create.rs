@@ -31,10 +31,10 @@ pub struct InitializeBondingCurve<'info>{
     #[account(
         init,
         payer=signer,
-        mint::decimals=9,
-        mint::authority=bonding_curve,
+        associated_token::mint=token_mint,
+        associated_token::authority=bonding_curve
     )]
-    pub bonding_curve_mint:Account<'info,Mint>,
+    pub bonding_curve_ata:Account<'info,TokenAccount>,
 
     #[account(
         init,
@@ -69,7 +69,7 @@ pub struct InitializeBondingCurve<'info>{
 }
 
 
-pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percentage:u64,solAmount:u64,min_tokens_out:u64,virtual_sol_reserves:u64,virtual_token_reserves:u64)->Result<()>{
+pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percentage:u64,solAmount:u64,min_tokens_out:u64,virtual_sol_reserves:u64,virtual_token_reserves:u64,bump:u8)->Result<()>{
 
     let bonding_curve=&mut ctx.accounts.bonding_curve;
 
@@ -79,6 +79,7 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
     bonding_curve.generated_fees=0;
     bonding_curve.fee_percentage=fee_percentage;
     bonding_curve.migrated=false;
+    bonding_curve.bump=bump;
 
     
 
@@ -93,5 +94,18 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
         )
     )?;
 
+    let seeds=&[b"bonding-curve".as_ref(),ctx.accounts.token_mint.key().as_ref(),&[ctx.bumps.bonding_curve],];
+    let signer_seeds=&[&seeds[..]];
+
+    let tokens_out=crate::utils::calculate_tokens_out(solAmount,virtual_sol_reserves,virtual_token_reserves)?;
+    require!(tokens_out>=min_tokens_out,CustomError::SlippageTooHigh);
+    let cpi_accounts=Transfer{
+        from:ctx.accounts.bonding_curve_ata.to_account_info(),
+        to:ctx.accounts.user_token_ata.to_account_info(),
+        authority:ctx.accounts.bonding_curve.to_account_info()
+    };
+    let cpi_program=ctx.accounts.token_program.to_account_info();
+    let cpi_ctx=CpiContext::new_with_signer(cpi_program,cpi_accounts,signer_seeds);
+    token::transfer(cpi_ctx, tokens_out)?;
     Ok(())
 }
