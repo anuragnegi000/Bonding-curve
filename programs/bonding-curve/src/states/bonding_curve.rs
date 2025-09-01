@@ -12,4 +12,5 @@ pub struct BondingCurve {
     pub total_supply: u64,  
     pub migrated: bool,
     pub bump: u8,
+    pub vault_bump:u8,
 }
