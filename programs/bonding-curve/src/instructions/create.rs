@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount, Transfer,transfer};
 use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{self,SyncNative};
 
 use crate::states::bonding_curve::BondingCurve;
 
@@ -14,23 +15,18 @@ pub struct InitializeBondingCurve<'info>{
     #[account(mut)]
     pub token_mint:Account<'info,Mint>,
 
+    #[account(address=Pubkey::from_str("So11111111111111111111111111111111111111112"))]
+    pub native_mint:Account<'info,Mint>,
+    
     #[account(
         init,
-        space=8+32,
         payer=signer,
+        token::mint=native_mint,
+        token::authority=bonding_curve,
         seeds=[b"vault".as_ref(),token_mint.key().as_ref()],
         bump
     )]
     pub reserve_vault:Account<'info,TokenAccount>,
-
-    pub collateral_mint:Account<'info,Mint>,
-
-    #[account(
-        mut,
-        associated_token::mint=token_mint,
-        associated_token::authority=signer
-    )]
-    pub user_collateral_ata:Account<'info,TokenAccount>,
 
     #[account(
         init,
@@ -73,7 +69,7 @@ pub struct InitializeBondingCurve<'info>{
 }
 
 
-pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percentage:u64,solAmount:u64)->Result<()>{
+pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percentage:u64,solAmount:u64,min_tokens_out:u64,virtual_sol_reserves:u64,virtual_token_reserves:u64)->Result<()>{
 
     let bonding_curve=&mut ctx.accounts.bonding_curve;
 
@@ -84,16 +80,17 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
     bonding_curve.fee_percentage=fee_percentage;
     bonding_curve.migrated=false;
 
-    transfer(
+    
+
+    **ctx.accounts.signer.to_account_info().try_borrow_mut_lamports()-=solAmount;
+    **ctx.accounts.reserve_vault.to_account_info().try_borrow_lamports()+=solAmount;
+
+
+    token::sync_native(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            Transfer{
-                from:ctx.accounts.user_collateral_ata.to_account_info(),
-                to:ctx.accounts.reserve_vault.to_account_info(),
-                authority:ctx.accounts.signer.to_account_info()
-            },
-        ),
-        solAmount
+            SyncNative { account: ctx.accounts.reserve_vault.to_account_info(), },
+        )
     )?;
 
     Ok(())
