@@ -4,6 +4,7 @@ use anchor_spl::token::{self,MintTo,Mint,Token,TokenAccount};
 
 #[derive(Accounts)]
 pub struct BuyToken<'info>{
+    #[account(mut)]
     pub buyer:Signer<'info>,
 
     #[account(
@@ -19,7 +20,7 @@ pub struct BuyToken<'info>{
     #[account(
         init,
         payer=buyer,
-        associated_tokem::mint=token_mint,
+        associated_token::mint=token_mint,
         associated_token::authority=buyer
     )]
     pub user_token_ata:Account<'info,TokenAccount>,
@@ -45,8 +46,7 @@ pub struct BuyToken<'info>{
 
 pub fn buy_token(ctx:BuyToken,sol_amount:u64,min_tokens_out:u64)->Result<()>{
     
-    let fees=calculate_fees(sol_amount)?;
-    bonding_curve.generated_fees+=fees;
+   
 
     let tokens_out=calculate_tokens_out(sol_amount);
 
@@ -55,6 +55,9 @@ pub fn buy_token(ctx:BuyToken,sol_amount:u64,min_tokens_out:u64)->Result<()>{
 
     require(tokens_out>=min_tokens_out,CustomError::SlippageTooHigh);
     let bonding_curve=&mut ctx.accounts.bonding_curve;
+
+    let fees=calculate_fees(sol_amount)?;
+    bonding_curve.generated_fees+=fees;
 
     let cpi_accounts=MintTo{
         mint:ctx.accounts.token_mint.to_account_info(),
