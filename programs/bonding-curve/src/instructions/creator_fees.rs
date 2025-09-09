@@ -1,5 +1,7 @@
-use anchor_spl::token::{transfer,Transfer};
+use anchor_spl::{associated_token::AssociatedToken, token::{transfer, Mint, Token, TokenAccount, Transfer}};
 use anchor_lang::prelude::*;
+use crate::error::BondingCurveError;
+use crate::states::bonding_curve::BondingCurve;
 
 #[derive(Accounts)]
 pub struct WithdrawFees<'info>{

@@ -8,5 +8,7 @@ pub enum BondingCurveError{
     #[msg("Already Migrated")]
     AlreadyMigrated,
     #[msg("Invalid fee percentage")]
-    InvalidFeePercentage
+    InvalidFeePercentage,
+    #[msg("Insufficient fees generated")]
+    NoFeesToWithdraw
 }
