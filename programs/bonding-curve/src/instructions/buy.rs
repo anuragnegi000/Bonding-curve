@@ -30,6 +30,13 @@ pub struct BuyToken<'info>{
 
     #[account(
         mut,
+        seeds=[b"fee-vault".as_ref(),token_mint.key().as_ref()],
+        bump
+    )]
+    pub fee_vault:Account<'info,TokenAccount>,
+
+    #[account(
+        mut,
         seeds=[b"vault".as_ref(),token_mint.key().as_ref()],
         bump=bonding_curve.vault_bump
     )]
@@ -47,10 +54,11 @@ pub struct BuyToken<'info>{
     pub system_program:Program<'info,System>
 }
 
-pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64)->Result<()>{
+pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64,fee_bump:u8)->Result<()>{
     
     let bonding_curve=&mut ctx.accounts.bonding_curve;
-
+    bonding_curve.fee_bump=fee_bump;
+    
     let tokens_out=calculate_tokens_out(sol_amount,bonding_curve.virtual_sol_reserves,bonding_curve.virtual_token_reserves)?;
 
     **ctx.accounts.buyer.to_account_info().try_borrow_mut_lamports()?-=sol_amount;
@@ -61,6 +69,7 @@ pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64)->Resul
 
     let fees=calculate_fees(sol_amount)?;
     bonding_curve.generated_fees+=fees;
+
 
     let cpi_accounts=Transfer{
         from:ctx.accounts.reserve_vault.to_account_info(),
@@ -79,6 +88,6 @@ pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64)->Resul
     transfer(cpi_ctx,tokens_out)?;
     bonding_curve.virtual_sol_reserves+=sol_amount;
     bonding_curve.virtual_token_reserves-=tokens_out;
-    
+    bonding_curve.generated_fees+=fees;
     Ok(())
 }

@@ -13,4 +13,5 @@ pub struct BondingCurve {
     pub migrated: bool,
     pub bump: u8,
     pub vault_bump:u8,
+    pub fee_bump:u8,
 }

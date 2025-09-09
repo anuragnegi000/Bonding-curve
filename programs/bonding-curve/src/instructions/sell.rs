@@ -61,7 +61,8 @@ pub fn sell_token(ctx:Context<SellToken>,min_sol_out:u64,tokens_to_sell:u64)->Re
 
     **ctx.accounts.reserve_vault.to_account_info().try_borrow_mut_lamports()?-=sol_out;
     **ctx.accounts.seller.to_account_info().try_borrow_mut_lamports()?+=sol_out;
-    
+    bonding_curve.virtual_sol_reserves-=sol_out;
+    bonding_curve.virtual_token_reserves+=tokens_to_sell;
 
     Ok(())
 }
