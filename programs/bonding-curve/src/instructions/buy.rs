@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{self, transfer, Mint, MintTo, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, transfer_checked, CloseAccount, Mint, MintTo, SyncNative, Token, TokenAccount, Transfer, TransferChecked};
+use anchor_lang::system_program::{transfer as system_transfer,Transfer as SystemTransfer};
 use crate::error::BondingCurveError;
 use crate::states::bonding_curve::BondingCurve;
 use crate::{calculate_tokens_out,calculate_fees};
@@ -28,6 +29,7 @@ pub struct BuyToken<'info>{
     )]
     pub user_token_ata:Account<'info,TokenAccount>,
 
+
     #[account(
         mut,
         seeds=[b"fee-vault".as_ref(),token_mint.key().as_ref()],
@@ -40,7 +42,7 @@ pub struct BuyToken<'info>{
         seeds=[b"vault".as_ref(),token_mint.key().as_ref()],
         bump=bonding_curve.vault_bump
     )]
-    pub reserve_vault:Account<'info,TokenAccount>,
+    pub reserve_vault:SystemAccount<'info>,
 
     #[account(
         mut,
@@ -61,22 +63,27 @@ pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64,fee_bum
     
     let tokens_out=calculate_tokens_out(sol_amount,bonding_curve.virtual_sol_reserves,bonding_curve.virtual_token_reserves)?;
 
-    **ctx.accounts.buyer.to_account_info().try_borrow_mut_lamports()?-=sol_amount;
-    **ctx.accounts.reserve_vault.to_account_info().try_borrow_mut_lamports()?+=sol_amount;
-
     require!(tokens_out>=min_tokens_out,BondingCurveError::SlippageTooHigh);
     let bonding_curve=&mut ctx.accounts.bonding_curve;
 
     let fees=calculate_fees(sol_amount)?;
-    bonding_curve.generated_fees+=fees;
 
+    let cpi_accounts_for_rv=SystemTransfer{
+        from:ctx.accounts.buyer.to_account_info(),
+        to:ctx.accounts.reserve_vault.to_account_info()
+    };
 
-    let cpi_accounts=Transfer{
-        from:ctx.accounts.reserve_vault.to_account_info(),
+    let system_cpi_ctx=CpiContext::new(ctx.accounts.system_program.to_account_info(),cpi_accounts_for_rv);
+    system_transfer(system_cpi_ctx, sol_amount)?;
+
+   
+    let cpi_accounts=TransferChecked{
+        from:ctx.accounts.bonding_curve_ata.to_account_info(),
+        mint:ctx.accounts.token_mint.to_account_info(),
         to:ctx.accounts.user_token_ata.to_account_info(),
         authority:bonding_curve.to_account_info()
     };
-    let token_mint=&ctx.accounts.token_mint.to_account_info().key();
+    let token_mint=ctx.accounts.token_mint.to_account_info().key();
     let seeds: &[&[u8]] = &[
         b"bonding-curve".as_ref(),
         token_mint.as_ref(),
@@ -85,7 +92,8 @@ pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64,fee_bum
     let signer_seeds: &[&[&[u8]]] = &[seeds];
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-    transfer(cpi_ctx,tokens_out)?;
+    transfer_checked(cpi_ctx,tokens_out,6)?;
+
     bonding_curve.virtual_sol_reserves+=sol_amount;
     bonding_curve.virtual_token_reserves-=tokens_out;
     bonding_curve.generated_fees+=fees;
