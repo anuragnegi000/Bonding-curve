@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount, Transfer, transfer, MintTo, mint_to};
+use anchor_spl::token::{Mint, Token, TokenAccount, TransferChecked,transfer_checked,transfer, MintTo, mint_to};
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self,SyncNative};
+use anchor_lang::system_program::{transfer as system_transfer,Transfer as SystemTransfer};
 
 use crate::states::bonding_curve::BondingCurve;
 use crate::constant::*;
@@ -22,14 +23,11 @@ pub struct InitializeBondingCurve<'info>{
     pub wsol_mint: Account<'info, Mint>,
     
     #[account(
-        init,
-        payer=signer,
-        token::mint=wsol_mint,
-        token::authority=bonding_curve,
+        mut,
         seeds=[b"vault".as_ref(),token_mint.key().as_ref()],
         bump
     )]
-    pub reserve_vault:Account<'info,TokenAccount>,
+    pub reserve_vault:SystemAccount<'info>,
 
     #[account(
         init,
@@ -87,16 +85,15 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
     bonding_curve.virtual_sol_reserves=VIRTUAL_SOL;
     bonding_curve.virtual_token_reserves=VIRTUAL_TOKEN_RESERVE;
 
-    **ctx.accounts.signer.to_account_info().try_borrow_mut_lamports()? -= solAmount;
-    **ctx.accounts.reserve_vault.to_account_info().lamports.borrow_mut() += solAmount;
+    let cpi_accounts_for_rv=SystemTransfer{
+        from:ctx.accounts.signer.to_account_info(),
+        to:ctx.accounts.reserve_vault.to_account_info()
+    };
 
+    let system_cpi_ctx=CpiContext::new(ctx.accounts.system_program.to_account_info(),cpi_accounts_for_rv);
 
-    token::sync_native(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            SyncNative { account: ctx.accounts.reserve_vault.to_account_info(), },
-        )
-    )?;
+    system_transfer(system_cpi_ctx, solAmount)?;
+    
 
     let token_mint=ctx.accounts.token_mint.to_account_info().key();
 
@@ -121,14 +118,15 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
 
     let tokens_out=crate::utils::calculate_tokens_out(solAmount,bonding_curve.virtual_sol_reserves,bonding_curve.virtual_token_reserves)?;
     require!(tokens_out>=min_tokens_out,BondingCurveError::SlippageTooHigh);
-    let transfer_to_user = Transfer {
+    let transfer_to_user = TransferChecked {
         from: ctx.accounts.bonding_curve_ata.to_account_info(),
+        mint:ctx.accounts.token_mint.to_account_info(),
         to: ctx.accounts.user_token_ata.to_account_info(),
         authority: bonding_curve.to_account_info()
     };
     let cpi_program=ctx.accounts.token_program.to_account_info();
     let cpi_ctx=CpiContext::new_with_signer(cpi_program, transfer_to_user, signer_seeds);
-    transfer(cpi_ctx, tokens_out)?;
+    transfer_checked(cpi_ctx, tokens_out,6)?;
     bonding_curve.virtual_sol_reserves+=solAmount;
     bonding_curve.virtual_token_reserves-=tokens_out;
     bonding_curve.total_supply = TOKEN_FOR_SALE; 

@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{associated_token::AssociatedToken, token::{self, transfer, Mint, SyncNative, Token, TokenAccount, Transfer}};
+use anchor_spl::{associated_token::AssociatedToken, token::{self, transfer, Mint, SyncNative, Token, TokenAccount, TransferChecked,transfer_checked}};
 use crate::{calculate_fees, states::bonding_curve::BondingCurve};
 use crate::{calculate_sol_out,error::BondingCurveError};
+use anchor_lang::system_program::{transfer as system_transfer,Transfer as SystemTransfer};
 
 
 #[derive(Accounts)]
@@ -55,24 +56,26 @@ pub fn sell_token(ctx:Context<SellToken>,min_sol_out:u64,tokens_to_sell:u64)->Re
     let mut bonding_curve=&mut ctx.accounts.bonding_curve;
     let sol_out=calculate_sol_out(tokens_to_sell,bonding_curve.virtual_sol_reserves,bonding_curve.virtual_token_reserves)?;
     require!(sol_out>=min_sol_out,BondingCurveError::SlippageTooHigh);
-    let cpi_accounts=Transfer{
+    let cpi_accounts=TransferChecked{
         from:ctx.accounts.user_token_ata.to_account_info(),
+        mint:ctx.accounts.token_mint.to_account_info(),
         to:ctx.accounts.bonding_curve_ata.to_account_info(),
         authority:ctx.accounts.seller.to_account_info()
     };
     let cpi_program=ctx.accounts.token_program.to_account_info();
     let cpi_ctx=CpiContext::new(cpi_program,cpi_accounts);
-    transfer(cpi_ctx,tokens_to_sell)?;
+    transfer_checked(cpi_ctx,tokens_to_sell,6)?;
     let fees=calculate_fees(sol_out)?;
     bonding_curve.generated_fees+=fees;
-    **ctx.accounts.reserve_vault.to_account_info().try_borrow_mut_lamports()?-=sol_out;
-    **ctx.accounts.seller.to_account_info().try_borrow_mut_lamports()?+=sol_out;
-    token::sync_native(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            SyncNative{account:ctx.accounts.reserve_vault.to_account_info()}
-        )
-    )?;
+
+    let cpi_accounts_for_rv=SystemTransfer{
+        from:ctx.accounts.reserve_vault.to_account_info(),
+        to:ctx.accounts.seller.to_account_info()
+    };
+
+    let system_cpi_ctx=CpiContext::new(ctx.accounts.system_program.to_account_info(),cpi_accounts_for_rv);
+    system_transfer(system_cpi_ctx, sol_out)?;
+
     bonding_curve.virtual_sol_reserves-=sol_out;
     bonding_curve.virtual_token_reserves+=tokens_to_sell;
 
