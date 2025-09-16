@@ -7,6 +7,8 @@ pub struct BondingCurve {
     pub reserve_vault:Pubkey,
     pub virtual_token_reserves:u64,
     pub virtual_sol_reserves:u64,
+    pub real_token_reserves:u64,
+    pub real_sol_reserves:u64,
     pub generated_fees: u64,
     pub fee_percentage: u64,
     pub total_supply: u64,  

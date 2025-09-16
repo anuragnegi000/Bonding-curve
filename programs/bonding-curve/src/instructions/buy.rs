@@ -97,5 +97,7 @@ pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64,fee_bum
     bonding_curve.virtual_sol_reserves+=sol_amount;
     bonding_curve.virtual_token_reserves-=tokens_out;
     bonding_curve.generated_fees+=fees;
+    bonding_curve.real_sol_reserves+=sol_amount;
+    bonding_curve.real_token_reserves-=tokens_out;
     Ok(())
 }

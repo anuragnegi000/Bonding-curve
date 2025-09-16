@@ -84,6 +84,7 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
     bonding_curve.vault_bump=vault_bump;
     bonding_curve.virtual_sol_reserves=VIRTUAL_SOL;
     bonding_curve.virtual_token_reserves=VIRTUAL_TOKEN_RESERVE;
+    bonding_curve.real_sol_reserves=solAmount;
 
     let cpi_accounts_for_rv=SystemTransfer{
         from:ctx.accounts.signer.to_account_info(),
@@ -130,6 +131,8 @@ pub fn initialize_bonding_curve(ctx:Context<InitializeBondingCurve>,fee_percenta
     bonding_curve.virtual_sol_reserves+=solAmount;
     bonding_curve.virtual_token_reserves-=tokens_out;
     bonding_curve.total_supply = TOKEN_FOR_SALE; 
+
+    bonding_curve.real_token_reserves=TOKEN_FOR_SALE - tokens_out;
     
     Ok(())
 }

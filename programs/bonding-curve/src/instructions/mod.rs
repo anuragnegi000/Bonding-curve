@@ -6,3 +6,5 @@ pub mod sell;
 pub use sell::*;
 pub mod creator_fees;
 pub use creator_fees::*;
+pub mod migrate;
+pub use migrate::*;

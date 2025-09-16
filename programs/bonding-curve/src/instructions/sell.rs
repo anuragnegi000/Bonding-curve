@@ -53,7 +53,7 @@ pub struct SellToken<'info>{
 }
 
 pub fn sell_token(ctx:Context<SellToken>,min_sol_out:u64,tokens_to_sell:u64)->Result<()>{
-    let mut bonding_curve=&mut ctx.accounts.bonding_curve;
+    let bonding_curve=&mut ctx.accounts.bonding_curve;
     let sol_out=calculate_sol_out(tokens_to_sell,bonding_curve.virtual_sol_reserves,bonding_curve.virtual_token_reserves)?;
     require!(sol_out>=min_sol_out,BondingCurveError::SlippageTooHigh);
     let cpi_accounts=TransferChecked{
@@ -78,6 +78,7 @@ pub fn sell_token(ctx:Context<SellToken>,min_sol_out:u64,tokens_to_sell:u64)->Re
 
     bonding_curve.virtual_sol_reserves-=sol_out;
     bonding_curve.virtual_token_reserves+=tokens_to_sell;
-
+    bonding_curve.real_sol_reserves-=sol_out;
+    bonding_curve.real_token_reserves+=tokens_to_sell;
     Ok(())
 }
