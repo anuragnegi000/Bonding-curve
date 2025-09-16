@@ -56,7 +56,7 @@ pub struct InitializeBondingCurve<'info>{
     #[account(
         init,
         payer=signer,
-        space=8+32+32+32+8+8+8+1,
+        space=8+32+32+32+8+8+8+8+8+8+8+1+1+1+1, // Updated space for all fields
         seeds=[b"bonding-curve".as_ref(),token_mint.key().as_ref()],
         bump
     )]

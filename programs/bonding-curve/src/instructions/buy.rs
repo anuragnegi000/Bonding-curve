@@ -4,7 +4,7 @@ use anchor_spl::token::{self, transfer_checked, CloseAccount, Mint, MintTo, Sync
 use anchor_lang::system_program::{transfer as system_transfer,Transfer as SystemTransfer};
 use crate::error::BondingCurveError;
 use crate::states::bonding_curve::BondingCurve;
-use crate::{calculate_tokens_out,calculate_fees};
+use crate::{calculate_tokens_out,calculate_fees, MigrationReadyEvent};
 
 #[derive(Accounts)]
 pub struct BuyToken<'info>{
@@ -99,5 +99,20 @@ pub fn buy_token(ctx:Context<BuyToken>,sol_amount:u64,min_tokens_out:u64,fee_bum
     bonding_curve.generated_fees+=fees;
     bonding_curve.real_sol_reserves+=sol_amount;
     bonding_curve.real_token_reserves-=tokens_out;
+    
+    // Check if migration threshold is reached
+    const MIGRATION_THRESHOLD: u64 = 40_000_000_000; // 40 SOL in lamports
+    if bonding_curve.real_sol_reserves >= MIGRATION_THRESHOLD && !bonding_curve.migrated {
+        msg!("🎉 Migration threshold reached!");
+        msg!("Real SOL reserves: {} lamports ({} SOL)", bonding_curve.real_sol_reserves, bonding_curve.real_sol_reserves / 1_000_000_000);
+        msg!("Token is ready for Raydium migration!");
+        // Emit event for frontend to detect
+        emit!(MigrationReadyEvent {
+            token_mint: bonding_curve.token_mint,
+            sol_reserves: bonding_curve.real_sol_reserves,
+            token_reserves: bonding_curve.real_token_reserves,
+        });
+    }
+    
     Ok(())
 }

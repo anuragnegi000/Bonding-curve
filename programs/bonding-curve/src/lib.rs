@@ -37,4 +37,16 @@ pub mod bonding_curve {
         instructions::withdraw_fees(ctx)?;
         Ok(())
     }
+    
+    pub fn migrate_to_raydium(ctx: Context<MigrateToRaydium>) -> Result<()> {
+        instructions::migrate_to_raydium(ctx)?;
+        Ok(())
+    }
+}
+
+#[event]
+pub struct MigrationReadyEvent {
+    pub token_mint: Pubkey,
+    pub sol_reserves: u64,
+    pub token_reserves: u64,
 }
