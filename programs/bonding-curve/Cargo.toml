@@ -16,8 +16,13 @@ no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 anchor-debug = []
+custom-heap = []  
+custom-panic = []
 
 [dependencies]
-anchor-lang = "0.29.0"  # Downgrade to 0.29.0
-anchor-spl = "0.29.0"   # Match the version
-raydium-cpmm-cpi = { git = "https://github.com/raydium-io/raydium-cpi", package="raydium-cpmm-cpi", branch = "anchor-0.29.0" }
+anchor-lang = "0.31.0"  # Match CLI version
+anchor-spl = "0.31.0"   # Match the version
+raydium-cpmm-cpi = { git = "https://github.com/raydium-io/raydium-cpi", package="raydium-cpmm-cpi" }  
+
+[patch.crates-io]
+ahash = "0.7.8"

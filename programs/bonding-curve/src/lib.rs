@@ -39,7 +39,7 @@ pub mod bonding_curve {
     }
     
     pub fn migrate_to_raydium(ctx: Context<MigrateToRaydium>) -> Result<()> {
-        instructions::migrate_to_raydium(ctx)?;
+        instructions::migrate(ctx)?;
         Ok(())
     }
 }

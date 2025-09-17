@@ -52,6 +52,7 @@ pub struct MigrateToRaydium<'info>{
 
     pub amm_config: Box<Account<'info, AmmConfig>>,
 
+    /// CHECK: Authority signer for the migration
     #[account(
         seeds = [raydium_cpmm_cpi::AUTH_SEED.as_bytes()],
         seeds::program = cp_swap_program,
@@ -59,6 +60,7 @@ pub struct MigrateToRaydium<'info>{
     )]
     pub authority: UncheckedAccount<'info>,
 
+    /// CHECK: Pool state for the migration
     #[account(
         mut,
         seeds = [
@@ -81,6 +83,7 @@ pub struct MigrateToRaydium<'info>{
 
     pub token_1_mint: Account<'info, Mint>,
 
+    /// CHECK: lp_mint for the migration
      #[account(
         mut,
         seeds = [
@@ -106,9 +109,11 @@ pub struct MigrateToRaydium<'info>{
     )]
     pub creator_token_1: Account<'info, TokenAccount>,
 
+    /// CHECK:  creator_lp_token for the migration
     #[account(mut)]
     pub creator_lp_token: UncheckedAccount<'info>,  
 
+    /// CHECK:  token_0_vault for the migration
     #[account(
         mut,
         seeds = [
@@ -121,6 +126,9 @@ pub struct MigrateToRaydium<'info>{
     )]
     pub token_0_vault: UncheckedAccount<'info>,
 
+
+
+    /// CHECK: token_1_vault for the migration
     #[account(
         mut,
         seeds = [
@@ -139,6 +147,7 @@ pub struct MigrateToRaydium<'info>{
     )]
     pub create_pool_fee: Account<'info, TokenAccount>,
 
+    /// CHECK:  observation state for the migration
     #[account(
         mut,
         seeds = [
@@ -164,7 +173,7 @@ pub struct MigrateToRaydium<'info>{
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn migrate_to_raydium(ctx: Context<MigrateToRaydium>) -> Result<()> {
+pub fn migrate(ctx: Context<MigrateToRaydium>) -> Result<()> {
     let bonding_curve = &mut ctx.accounts.bonding_curve;
     
     // 1. Validate migration conditions
@@ -275,7 +284,7 @@ pub fn migrate_to_raydium(ctx: Context<MigrateToRaydium>) -> Result<()> {
     
     // 7. Mark as migrated and reset reserves
     bonding_curve.migrated = true;
-    bonding_curve.real_sol_reserves = 0;
+    bonding_curve.real_sol_reserves = 0; // All SOL transferred
     bonding_curve.real_token_reserves = 0; 
     
     msg!("Migration to Raydium completed successfully!");
