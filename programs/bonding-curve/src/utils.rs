@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 
 pub fn calculate_fees(amount:u64)->Result<u64,ProgramError>{
-    let fee=(amount as f64 * 15 as f64 /100.0) as u64;
+    let fee=(amount as f64 * 1 as f64 /100.0) as u64;
     Ok(fee)
 }
 
